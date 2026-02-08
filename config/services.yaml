@@ -3,12 +3,25 @@
 parameters:
     campaign.active: '%env(bool:CAMPAIGN_ACTIVE)%'
     campaign.discount_rate: 0.05
+    app.internal_base_url: 'http://localhost:8080'
     provider.a.url: '%env(PROVIDER_A_URL)%'
     provider.b.url: '%env(PROVIDER_B_URL)%'
     provider.c.url: '%env(PROVIDER_C_URL)%'
     provider.timeout: '%env(int:PROVIDER_TIMEOUT)%'
 
 services:
+    monolog.handler.stream:
+        class: Monolog\Handler\StreamHandler
+        arguments:
+            $stream: '%kernel.project_dir%/var/log/%kernel.environment%.log'
+            $level: !php/const Monolog\Level::Debug
+
+    Psr\Log\LoggerInterface:
+        class: Monolog\Logger
+        arguments:
+            $name: 'app'
+            $handlers: ['@monolog.handler.stream']
+
     _defaults:
         autowire: true
         autoconfigure: true
@@ -25,22 +38,34 @@ services:
             $discountRate: '%campaign.discount_rate%'
 
     # ==========================================
-    # Provider Clients (implementan ProviderInterface)
+    # HTTP Client for providers (internal sub-requests when URL is localhost)
     # ==========================================
-    App\Provider\ProviderA\ProviderAClient:
+    App\HttpClient\InternalHttpClient:
         arguments:
+            $realClient: '@http_client'
+            $kernel: '@kernel'
+            $internalBaseUrl: '%app.internal_base_url%'
+
+    # ==========================================
+    # Provider Services (implementan ProviderInterface)
+    # ==========================================
+    App\Service\Provider\ProviderAService:
+        arguments:
+            $httpClient: '@App\HttpClient\InternalHttpClient'
             $url: '%provider.a.url%'
             $timeout: '%provider.timeout%'
         tags: ['app.provider']
 
-    App\Provider\ProviderB\ProviderBClient:
+    App\Service\Provider\ProviderBService:
         arguments:
+            $httpClient: '@App\HttpClient\InternalHttpClient'
             $url: '%provider.b.url%'
             $timeout: '%provider.timeout%'
         tags: ['app.provider']
 
-    App\Provider\ProviderC\ProviderCClient:
+    App\Service\Provider\ProviderCService:
         arguments:
+            $httpClient: '@App\HttpClient\InternalHttpClient'
             $url: '%provider.c.url%'
             $timeout: '%provider.timeout%'
         tags: ['app.provider']
@@ -48,7 +73,7 @@ services:
     # ==========================================
     # QuoteComparisonService (orquestador principal)
     # ==========================================
-    App\Service\QuoteComparisonService:
+    App\Service\Quote\QuoteComparisonService:
         arguments:
             $providers: !tagged_iterator 'app.provider'
 

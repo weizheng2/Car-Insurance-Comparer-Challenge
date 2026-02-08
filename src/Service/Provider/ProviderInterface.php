@@ -1,5 +1,8 @@
 <?php
-namespace App\Provider;
+
+declare(strict_types=1);
+
+namespace App\Service\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Exception\ProviderException;

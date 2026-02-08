@@ -10,9 +10,3 @@ controllers:
         path: ../src/Controller/
         namespace: App\Controller
     type: attribute
-
-provider_simulators:
-    resource:
-        path: ../src/Provider/
-        namespace: App\Provider
-    type: attribute

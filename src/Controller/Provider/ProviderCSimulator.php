@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Provider\ProviderC;
+namespace App\Controller\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Enum\CarType;
@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Simulador de Provider C (hardcoded).
+ * Simulador de Provider C (endpoint HTTP).
  *
  * Cálculo simulado: Base 195€, age brackets, vehicle adj, comercial +20%
  */
@@ -50,7 +50,7 @@ final class ProviderCSimulator extends AbstractController
         try {
             $data = $this->parseCsvRequest($request->getContent());
             $quoteRequest = QuoteRequest::fromArray([
-                'driver_age' => $data['driver_age'],
+                'driver_age' => (int) $data['driver_age'],
                 'car_type' => $this->mapCarType($data['car_type']),
                 'car_use' => $this->mapCarUse($data['car_use']),
             ]);

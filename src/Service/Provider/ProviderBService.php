@@ -2,25 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Provider\ProviderC;
+namespace App\Service\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Enum\CarType;
 use App\Enum\CarUse;
 use App\Exception\ProviderException;
-use App\Provider\ProviderInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Cliente Provider C (CSV). Incluye normalización de request/response.
+ * Servicio Provider B (XML). Incluye normalización de request/response.
  *
- * Formato: driver_age,car_type,car_use (T/S/C, P/C)
- * Respuesta: price,currency
+ * Formato XML: EdadConductor, TipoCoche, UsoCoche
+ * Respuesta: <RespuestaCotizacion><Precio>310.0</Precio><Moneda>EUR</Moneda></RespuestaCotizacion>
  *
  * @throws ProviderException En errores de conexión, timeout o respuesta inválida
  */
-final class ProviderCClient implements ProviderInterface
+final class ProviderBService implements ProviderInterface
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -31,12 +30,12 @@ final class ProviderCClient implements ProviderInterface
 
     public function getName(): string
     {
-        return 'provider-c';
+        return 'provider-b';
     }
 
     public function getQuote(QuoteRequest $request): float
     {
-        $this->logger->info('Provider C: solicitando presupuesto');
+        $this->logger->info('Provider B: solicitando presupuesto');
 
         try {
             $body = $this->toProviderFormat($request);
@@ -44,8 +43,8 @@ final class ProviderCClient implements ProviderInterface
             $response = $this->httpClient->request('POST', $this->url, [
                 'body' => $body,
                 'headers' => [
-                    'Content-Type' => 'text/csv',
-                    'Accept' => 'text/csv',
+                    'Content-Type' => 'application/xml',
+                    'Accept' => 'application/xml',
                 ],
                 'timeout' => $this->timeout,
             ]);
@@ -70,34 +69,36 @@ final class ProviderCClient implements ProviderInterface
 
     private function toProviderFormat(QuoteRequest $request): string
     {
-        $carType = match ($request->carType) {
-            CarType::TURISMO => 'T',
-            CarType::SUV => 'S',
-            CarType::COMPACTO => 'C',
-        };
-        $carUse = match ($request->carUse) {
-            CarUse::PRIVATE => 'P',
-            CarUse::COMMERCIAL => 'C',
-        };
+        $xml = new \SimpleXMLElement('<SolicitudCotizacion/>');
+        $xml->addChild('EdadConductor', (string) $request->driverAge);
+        $xml->addChild('TipoCoche', match ($request->carType) {
+            CarType::TURISMO => 'turismo',
+            CarType::SUV => 'SUV',
+            CarType::COMPACTO => 'compacto',
+        });
+        $xml->addChild('UsoCoche', match ($request->carUse) {
+            CarUse::PRIVATE => 'privado',
+            CarUse::COMMERCIAL => 'comercial',
+        });
+        $xml->addChild('ConductorOcasional', 'NO');
 
-        return "driver_age,car_type,car_use\n{$request->driverAge},{$carType},{$carUse}";
+        $dom = dom_import_simplexml($xml)->ownerDocument;
+        return $dom->saveXML($dom->documentElement);
     }
 
     private function parseResponse(string $response): float
     {
-        $lines = explode("\n", trim($response));
-        if (count($lines) < 2) {
-            throw ProviderException::invalidResponse($this->getName(), 'Respuesta CSV inválida');
+        $xml = @simplexml_load_string($response);
+
+        if ($xml === false || !isset($xml->Precio)) {
+            throw ProviderException::invalidResponse($this->getName(), 'Respuesta XML inválida');
         }
 
-        $headers = str_getcsv($lines[0]);
-        $values = str_getcsv($lines[1]);
-        $data = array_combine($headers, $values);
-
-        if (!isset($data['price']) || !is_numeric($data['price'])) {
+        $price = (string) $xml->Precio;
+        if (!is_numeric($price)) {
             throw ProviderException::invalidResponse($this->getName(), 'Precio inválido');
         }
 
-        return (float) $data['price'];
+        return (float) $price;
     }
 }

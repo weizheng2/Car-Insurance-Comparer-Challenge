@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Provider\ProviderB;
+declare(strict_types=1);
+
+namespace App\Controller\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Enum\CarType;
-use App\Enum\CarUse;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Simulador de Provider B (hardcoded).
+ * Simulador de Provider B (endpoint HTTP).
  *
  * Cálculo de precios simulado según especificación:
  * - Base: 250€
@@ -44,7 +45,6 @@ final class ProviderBSimulator extends AbstractController
 
         if (random_int(1, 100) === 1) {
             $this->logger->warning('Provider B: simulación de 1% (timeout)');
-            // sleep(60); // Descomentar para simular timeout real
         }
 
         try {

@@ -52,12 +52,48 @@ docker-compose up -d --build
 # Install dependencies
 composer install
 
-# Start the Symfony development server
-symfony server:start
-
-# Or use PHP's built-in server
-php -S localhost:8080 -t public/
+# Iniciar servidor (puerto 8080 - debe coincidir con PROVIDER_*_URL en .env)
+composer serve
+# o: php -S localhost:8080 -t public/
 ```
+
+### Probar los endpoints
+
+**1. Con REST Client (VS Code/Cursor)**  
+Abre `test-api.http` y ejecuta cada petición con "Send Request".
+
+**2. Con PowerShell**
+```powershell
+# Asegúrate de que el servidor está corriendo en otra terminal
+.\scripts\test-api.ps1
+
+# Con otro puerto
+.\scripts\test-api.ps1 -BaseUrl "http://localhost:8000"
+```
+
+**3. Con curl (Linux/Mac)**
+```bash
+chmod +x scripts/test-api.sh
+./scripts/test-api.sh
+```
+
+**4. Comandos curl individuales**
+```bash
+# Health
+curl http://localhost:8080/api/health
+
+# Provider A
+curl -X POST http://localhost:8080/api/provider-a/quote \
+  -H "Content-Type: application/json" \
+  -d '{"driver_age":30,"car_form":"compact","car_use":"private"}'
+
+# Calculate
+curl -X POST http://localhost:8080/api/calculate \
+  -H "Content-Type: application/json" \
+  -d '{"driver_age":30,"car_type":"turismo","car_use":"private"}'
+```
+
+> **Nota**: El endpoint `/api/calculate` llama internamente a los providers. Asegúrate de que el servidor corre en el puerto configurado en `.env` (PROVIDER_A_URL, etc.).
 
 ## API Endpoints
 

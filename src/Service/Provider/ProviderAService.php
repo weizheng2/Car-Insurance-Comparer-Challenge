@@ -2,24 +2,23 @@
 
 declare(strict_types=1);
 
-namespace App\Provider\ProviderA;
+namespace App\Service\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Enum\CarType;
 use App\Exception\ProviderException;
-use App\Provider\ProviderInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Cliente Provider A (JSON). Incluye normalización de request/response.
+ * Servicio Provider A (JSON). Incluye normalización de request/response.
  *
  * Formato: driver_age, car_form (compact/suv), car_use (private/commercial)
  * Respuesta: {"price": "295 EUR"}
  *
  * @throws ProviderException En errores de conexión, timeout o respuesta inválida
  */
-final class ProviderAClient implements ProviderInterface
+final class ProviderAService implements ProviderInterface
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,

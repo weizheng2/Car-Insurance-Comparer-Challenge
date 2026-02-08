@@ -5,7 +5,7 @@ use App\DTO\Request\QuoteRequest;
 use App\DTO\Response\CalculateResponse;
 use App\DTO\Response\Quote;
 use App\Exception\ProviderException;
-use App\Provider\ProviderInterface;
+use App\Service\Provider\ProviderInterface;
 use App\Service\Campaign\CampaignService;
 use Psr\Log\LoggerInterface;
 

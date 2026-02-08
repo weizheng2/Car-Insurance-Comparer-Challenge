@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Provider\ProviderA;
+namespace App\Controller\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Enum\CarType;
@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Simulador de Provider A
+ * Simulador de Provider A (endpoint HTTP).
  *
  * Cálculo de precios simulado según especificación:
  * - Base: 217€

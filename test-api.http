@@ -1,0 +1,68 @@
+### CHECK24 Insurance Quote API - Pruebas de endpoints
+### Usar con REST Client (extensión para VS Code/Cursor) o como referencia para curl
+### Antes de probar: ejecutar "composer serve" en otra terminal
+
+@baseUrl = http://localhost:8080
+# Si usas otro puerto: @baseUrl = http://127.0.0.1:8000
+
+# Nota: Provider A ~2s, Provider B ~5s, Calculate ~10s (llama a los 3)
+
+### 1. Health Check
+GET {{baseUrl}}/api/health
+
+### 2. Provider A - Quote (JSON)
+POST {{baseUrl}}/api/provider-a/quote
+Content-Type: application/json
+
+{
+  "driver_age": 30,
+  "car_form": "compact",
+  "car_use": "private"
+}
+
+### 3. Provider B - Quote (XML)
+POST {{baseUrl}}/api/provider-b/quote
+Content-Type: application/xml
+
+<SolicitudCotizacion>
+  <EdadConductor>30</EdadConductor>
+  <TipoCoche>turismo</TipoCoche>
+  <UsoCoche>privado</UsoCoche>
+  <ConductorOcasional>NO</ConductorOcasional>
+</SolicitudCotizacion>
+
+### 4. Provider C - Quote (CSV)
+POST {{baseUrl}}/api/provider-c/quote
+Content-Type: text/csv
+
+driver_age,car_type,car_use
+30,T,P
+
+### 5. Calculate - Comparar presupuestos (driver_age)
+POST {{baseUrl}}/api/calculate
+Content-Type: application/json
+
+{
+  "driver_age": 30,
+  "car_type": "turismo",
+  "car_use": "private"
+}
+
+### 6. Calculate - Con driver_birthday
+POST {{baseUrl}}/api/calculate
+Content-Type: application/json
+
+{
+  "driver_birthday": "1994-05-15",
+  "car_type": "suv",
+  "car_use": "commercial"
+}
+
+### 7. Calculate - Validación error (car_type faltante)
+POST {{baseUrl}}/api/calculate
+Content-Type: application/json
+
+{
+  "driver_age": 30,
+  "car_use": "private"
+}
