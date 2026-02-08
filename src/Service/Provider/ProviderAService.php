@@ -9,14 +9,18 @@ use App\Enum\CarType;
 use App\Exception\ProviderException;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Servicio Provider A (JSON). Incluye normalización de request/response.
- *
- * Formato: driver_age, car_form (compact/suv), car_use (private/commercial)
- * Respuesta: {"price": "295 EUR"}
- *
- * @throws ProviderException En errores de conexión, timeout o respuesta inválida
+ * Request: {
+ *     "driver_age": 30,
+ *     "car_form": "sedan",
+ *     "car_use": "private"
+ * }
+ * Response: {
+ *     "price": "295 EUR"
+ * }
+ * @throws ProviderException If the provider does not respond correctly
  */
 final class ProviderAService implements ProviderInterface
 {
@@ -32,34 +36,32 @@ final class ProviderAService implements ProviderInterface
         return 'provider-a';
     }
 
-    public function getQuote(QuoteRequest $request): float
+    public function requestQuote(QuoteRequest $request): ResponseInterface
     {
-        $this->logger->info('Provider A: solicitando presupuesto');
+        $this->logger->info('Provider A: request received');
 
-        try {
-            $body = $this->toProviderFormat($request);
+        $body = $this->toProviderFormat($request);
 
-            $response = $this->httpClient->request('POST', $this->url, [
-                'json' => $body,
-                'timeout' => $this->timeout,
-            ]);
+        return $this->httpClient->request('POST', $this->url, [
+            'json' => $body,
+            'timeout' => $this->timeout,
+        ]);
+    }
 
-            if ($response->getStatusCode() !== 200) {
-                throw ProviderException::httpError(
-                    $this->getName(),
-                    $response->getStatusCode(),
-                    $response->getContent(false)
-                );
-            }
+    public function parseResponseContent(string $content): float
+    {
+        $data = json_decode($content, true);
 
-            return $this->parseResponse($response->getContent());
-        } catch (ProviderException $e) {
-            throw $e;
-        } catch (\Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface $e) {
-            throw ProviderException::timeout($this->getName(), $this->timeout);
-        } catch (\Throwable $e) {
-            throw ProviderException::connectionError($this->getName(), $e);
+        if (!isset($data['price'])) {
+            throw ProviderException::invalidResponse($this->getName(), '"price" field is missing');
         }
+
+        $numeric = preg_replace('/[^0-9.]/', '', $data['price']);
+        if (!is_numeric($numeric)) {
+            throw ProviderException::invalidResponse($this->getName(), 'Invalid price');
+        }
+
+        return (float) $numeric;
     }
 
     private function toProviderFormat(QuoteRequest $request): array
@@ -74,19 +76,4 @@ final class ProviderAService implements ProviderInterface
         ];
     }
 
-    private function parseResponse(string $response): float
-    {
-        $data = json_decode($response, true);
-
-        if (!isset($data['price'])) {
-            throw ProviderException::invalidResponse($this->getName(), 'Falta campo "price"');
-        }
-
-        $numeric = preg_replace('/[^0-9.]/', '', $data['price']);
-        if (!is_numeric($numeric)) {
-            throw ProviderException::invalidResponse($this->getName(), 'Precio inválido');
-        }
-
-        return (float) $numeric;
-    }
 }

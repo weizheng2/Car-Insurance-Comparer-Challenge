@@ -13,12 +13,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Controller único que recibe la petición y envía la respuesta.
- *
- * Responsabilidad: HTTP (parsear request, formatear response).
- * Toda la lógica está en QuoteComparisonService.
- */
 #[Route('/api')]
 final class CalculateController extends AbstractController
 {
@@ -30,7 +24,7 @@ final class CalculateController extends AbstractController
     #[Route('/calculate', name: 'api_calculate', methods: ['POST'])]
     public function calculate(Request $request): JsonResponse
     {
-        $this->logger->info('Solicitud de cálculo recibida');
+        $this->logger->info('Init calculate request');
 
         try {
             $data = $this->parseRequest($request);
@@ -39,22 +33,12 @@ final class CalculateController extends AbstractController
 
             return new JsonResponse($response->toArray(), Response::HTTP_OK);
         } catch (\InvalidArgumentException $e) {
-            $this->logger->warning('Validación fallida', ['error' => $e->getMessage()]);
+            $this->logger->warning('Validation failed', ['error' => $e->getMessage()]);
             return new JsonResponse([
                 'error' => 'Validation failed',
                 'details' => [$e->getMessage()],
             ], Response::HTTP_BAD_REQUEST);
         }
-        // Otras excepciones (ProviderException, etc.) las maneja ExceptionSubscriber
-    }
-
-    #[Route('/health', name: 'api_health', methods: ['GET'])]
-    public function health(): JsonResponse
-    {
-        return new JsonResponse([
-            'status' => 'ok',
-            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
-        ]);
     }
 
     private function parseRequest(Request $request): array

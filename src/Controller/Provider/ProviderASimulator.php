@@ -6,7 +6,6 @@ namespace App\Controller\Provider;
 
 use App\DTO\Request\QuoteRequest;
 use App\Enum\CarType;
-use App\Enum\CarUse;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -14,38 +13,44 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Simulador de Provider A (endpoint HTTP).
- *
- * Cálculo de precios simulado según especificación:
+/** *
  * - Base: 217€
- * - Edad 18-24: +70€ | 25-55: +0€ | 56+: +90€
+ * - Age 18-24: +70€ | 25-55: +0€ | 56+: +90€
  * - SUV: +100€ | Compact: +10€
- * - Uso comercial: +15%
+ * - Commercial use: +15%
  */
 #[Route('/api/provider-a')]
 final class ProviderASimulator extends AbstractController
 {
+    private const ERROR_RATE = 10;
+    private const SLEEP_TIME = 2;
+
     private const BASE = 217.0;
+    
     private const AGE_18_24 = 70.0;
     private const AGE_56_PLUS = 90.0;
+
     private const VEHICLE_SUV = 100.0;
     private const VEHICLE_COMPACT = 10.0;
+
     private const COMMERCIAL_MULTIPLIER = 1.15;
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly bool $enableProviderErrors,
     ) {}
 
     #[Route('/quote', name: 'provider_a_quote', methods: ['POST'])]
     public function quote(Request $request): Response
     {
-        $this->logger->info('Provider A: solicitud recibida');
+        $this->logger->info('Provider A: request received');
 
-        sleep(2); // Simula latencia 2s
+        if ($this->enableProviderErrors) {
+            sleep(self::SLEEP_TIME);
+        }
 
-        if (random_int(1, 10) === 1) {
-            $this->logger->warning('Provider A: simulación de error (10%)');
+        if ($this->enableProviderErrors && random_int(1, 100) <= self::ERROR_RATE) {
+            $this->logger->warning('Provider A: simulate error (10%)');
             return new JsonResponse(['error' => 'Internal server error'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 

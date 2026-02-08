@@ -29,7 +29,6 @@ final readonly class QuoteRequest
     /**
      * Creates a QuoteRequest from raw input data.
      *
-     * @param array{driver_age?: int, driver_birthday?: string, car_type?: string, car_use?: string} $data
      * @throws \InvalidArgumentException if required fields are missing or invalid
      */
     public static function fromArray(array $data): self

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Exception;
 
 /**
- * Excepción cuando un proveedor no devuelve un presupuesto válido.
+ * Exception when a provider does not return a valid quote.
  */
 class ProviderException extends \RuntimeException
 {

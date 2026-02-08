@@ -1,41 +1,33 @@
-# Docker Compose configuration for Check24 Insurance Quote Comparison
-# This setup is designed for development and demonstration purposes
-
-version: '3.8'
-
 services:
-  # Main Symfony application
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: check24_app
+    container_name: coding-challenge
     ports:
       - "8080:80"
     volumes:
-      # Mount source code for development (hot reload)
-      - .:/var/www/html
-      # Persist vendor directory to avoid reinstalling on every restart
+      # Don't mount the entire directory in development
+      - ./src:/var/www/html/src
+      - ./config:/var/www/html/config
+      - ./public:/var/www/html/public
+      # Keep these as named volumes
       - vendor:/var/www/html/vendor
-      # Persist var directory for cache and logs
       - var:/var/www/html/var
     environment:
-      # Application settings
-      APP_ENV: dev
-      APP_DEBUG: 1
-      # Campaign feature flag (set to 'true' or 'false')
+      APP_ENV: ${APP_ENV:-dev}
+      APP_DEBUG: ${APP_DEBUG:-1}
       CAMPAIGN_ACTIVE: 'true'
-      # Provider endpoints (internal Docker network)
-      PROVIDER_A_URL: 'http://localhost:8080/api/provider-a/quote'
-      PROVIDER_B_URL: 'http://localhost:8080/api/provider-b/quote'
-      PROVIDER_C_URL: 'http://localhost:8080/api/provider-c/quote'
-      # HTTP client settings
+      APP_INTERNAL_BASE_URL: 'http://localhost'
+      PROVIDER_A_URL: 'http://localhost/api/provider-a/quote'
+      PROVIDER_B_URL: 'http://localhost/api/provider-b/quote'
+      PROVIDER_C_URL: 'http://localhost/api/provider-c/quote'
       PROVIDER_TIMEOUT: 10
     networks:
-      - check24_network
+      - coding-challenge-network
 
 networks:
-  check24_network:
+  coding-challenge-network:
     driver: bridge
 
 volumes:

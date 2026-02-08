@@ -10,3 +10,8 @@ controllers:
         path: ../src/Controller/
         namespace: App\Controller
     type: attribute
+
+# OpenAPI / Swagger UI - http://localhost:8080/api/doc
+nelmio_api_doc:
+    resource: ../vendor/nelmio/api-doc-bundle/config/routing/swaggerui.php
+    prefix: /api/doc

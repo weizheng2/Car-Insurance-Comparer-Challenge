@@ -1,9 +1,10 @@
 # yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
 
 parameters:
+    app.enable_provider_errors: '%env(bool:ENABLE_PROVIDER_ERRORS)%'
     campaign.active: '%env(bool:CAMPAIGN_ACTIVE)%'
-    campaign.discount_rate: 0.05
-    app.internal_base_url: 'http://localhost:8080'
+    campaign.discount_rate: '%env(float:CAMPAIGN_DISCOUNT_RATE)%'
+    app.internal_base_url: '%env(APP_INTERNAL_BASE_URL)%'
     provider.a.url: '%env(PROVIDER_A_URL)%'
     provider.b.url: '%env(PROVIDER_B_URL)%'
     provider.c.url: '%env(PROVIDER_C_URL)%'
@@ -28,6 +29,21 @@ services:
 
     App\:
         resource: '../src/'
+
+    # ==========================================
+    # Provider Simulators (mock APIs)
+    # ==========================================
+    App\Controller\Provider\ProviderASimulator:
+        arguments:
+            $enableProviderErrors: '%app.enable_provider_errors%'
+
+    App\Controller\Provider\ProviderBSimulator:
+        arguments:
+            $enableProviderErrors: '%app.enable_provider_errors%'
+
+    App\Controller\Provider\ProviderCSimulator:
+        arguments:
+            $enableProviderErrors: '%app.enable_provider_errors%'
 
     # ==========================================
     # Campaign
@@ -76,6 +92,8 @@ services:
     App\Service\Quote\QuoteComparisonService:
         arguments:
             $providers: !tagged_iterator 'app.provider'
+            $httpClient: '@App\HttpClient\InternalHttpClient'
+            $providerTimeout: '%provider.timeout%'
 
     # ==========================================
     # Exception Subscriber

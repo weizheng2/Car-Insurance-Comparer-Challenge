@@ -1,13 +1,14 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Service\Campaign;
 
 final readonly class CampaignService
 {
-    private const DEFAULT_DISCOUNT_RATE = 0.05;
-
     public function __construct(
         private bool $campaignActive,
-        private float $discountRate = self::DEFAULT_DISCOUNT_RATE,
+        private float $discountRate,
     ) {}
 
     public function isActive(): bool

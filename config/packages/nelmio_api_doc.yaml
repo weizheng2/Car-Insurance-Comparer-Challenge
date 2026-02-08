@@ -1,0 +1,54 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: CHECK24 Insurance Quote Comparison API
+            description: API for comparing car insurance quotes from multiple providers
+            version: 1.0.0
+        paths:
+            /api/calculate:
+                post:
+                    summary: Compare insurance quotes
+                    description: Calls provider endpoints, aggregates offers, applies campaign discount if active, returns sorted by price
+                    requestBody:
+                        required: true
+                        content:
+                            application/json:
+                                schema:
+                                    type: object
+                                    required:
+                                        - driver_age
+                                        - car_type
+                                        - car_use
+                                    properties:
+                                        driver_age:
+                                            type: integer
+                                            minimum: 18
+                                            maximum: 120
+                                            description: Driver age in years
+                                        driver_birthday:
+                                            type: string
+                                            format: date
+                                            description: Alternative to driver_age (YYYY-MM-DD)
+                                        car_type:
+                                            type: string
+                                            enum: [turismo, suv, compacto]
+                                        car_use:
+                                            type: string
+                                            enum: [private, commercial]
+                    responses:
+                        '200':
+                            description: Success - quotes from available providers
+                        '400':
+                            description: Validation failed
+            /api/provider-a/quote:
+                post:
+                    summary: Provider A quote (JSON)
+                    description: Mock provider - 2s latency, 10% error rate
+            /api/provider-b/quote:
+                post:
+                    summary: Provider B quote (XML)
+                    description: Mock provider - 5s latency, 1% error rate
+            /api/provider-c/quote:
+                post:
+                    summary: Provider C quote (CSV)
+                    description: Mock provider - 3s latency, 5% error rate

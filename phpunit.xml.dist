@@ -17,7 +17,10 @@
         
         <!-- Campaign configuration for tests -->
         <env name="CAMPAIGN_ACTIVE" value="false"/>
+        <env name="CAMPAIGN_DISCOUNT_RATE" value="0.05"/>
+        <env name="ENABLE_PROVIDER_ERRORS" value="false"/>
         
+        <env name="APP_INTERNAL_BASE_URL" value="http://localhost"/>
         <!-- Provider URLs (not used in unit tests) -->
         <env name="PROVIDER_A_URL" value="http://localhost/api/provider-a/quote"/>
         <env name="PROVIDER_B_URL" value="http://localhost/api/provider-b/quote"/>

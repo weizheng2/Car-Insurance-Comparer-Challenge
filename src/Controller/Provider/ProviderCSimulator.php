@@ -21,29 +21,38 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/provider-c')]
 final class ProviderCSimulator extends AbstractController
 {
+    private const SLEEP_TIME = 3;
+    private const ERROR_RATE = 5;
+
     private const float BASE = 195.0;
+
     private const float AGE_18_25 = 80.0;
     private const float AGE_26_45 = 10.0;
     private const float AGE_46_65 = 30.0;
     private const float AGE_66_PLUS = 120.0;
+
     private const float VEHICLE_TURISMO = 25.0;
     private const float VEHICLE_SUV = 150.0;
     private const float VEHICLE_COMPACTO = 5.0;
+
     private const float COMMERCIAL_MULTIPLIER = 1.20;
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly bool $enableProviderErrors,
     ) {}
 
     #[Route('/quote', name: 'provider_c_quote', methods: ['POST'])]
     public function quote(Request $request): Response
     {
-        $this->logger->info('Provider C: solicitud recibida');
+        $this->logger->info('Provider C: request received');
 
-        sleep(3);
+        if ($this->enableProviderErrors) {
+            sleep(self::SLEEP_TIME);
+        }
 
-        if (random_int(1, 20) === 1) {
-            $this->logger->warning('Provider C: simulación de error (5%)');
+        if ($this->enableProviderErrors && random_int(1, 100) <= self::ERROR_RATE) {
+            $this->logger->warning('Provider C: simulate error (5%)');
             return new Response("error\nInternal server error", Response::HTTP_INTERNAL_SERVER_ERROR, ['Content-Type' => 'text/csv']);
         }
 

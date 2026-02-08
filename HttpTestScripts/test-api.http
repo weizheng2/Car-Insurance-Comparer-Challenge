@@ -1,11 +1,4 @@
-### CHECK24 Insurance Quote API - Pruebas de endpoints
-### Usar con REST Client (extensión para VS Code/Cursor) o como referencia para curl
-### Antes de probar: ejecutar "composer serve" en otra terminal
-
 @baseUrl = http://localhost:8080
-# Si usas otro puerto: @baseUrl = http://127.0.0.1:8000
-
-# Nota: Provider A ~2s, Provider B ~5s, Calculate ~10s (llama a los 3)
 
 ### 1. Health Check
 GET {{baseUrl}}/api/health

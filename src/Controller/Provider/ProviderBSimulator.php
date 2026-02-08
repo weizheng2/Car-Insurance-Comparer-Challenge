@@ -13,38 +13,45 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Simulador de Provider B (endpoint HTTP).
- *
- * Cálculo de precios simulado según especificación:
+ * Simulated price calculation according to specification:
  * - Base: 250€
  * - Edad 18-29: +50€ | 30-59: +20€ | 60+: +100€
  * - Turismo: +30€ | SUV: +200€ | Compacto: +0€
- * - Sin ajuste por uso comercial
+ * - No commercial use adjustment
  */
 #[Route('/api/provider-b')]
 final class ProviderBSimulator extends AbstractController
 {
+    private const SLEEP_TIME = 5;
+    private const TIMEOUT_PROBABILITY_PERCENT = 1; 
+
     private const BASE = 250.0;
+
     private const AGE_18_29 = 50.0;
     private const AGE_30_59 = 20.0;
     private const AGE_60_PLUS = 100.0;
+
     private const VEHICLE_TURISMO = 30.0;
     private const VEHICLE_SUV = 200.0;
     private const VEHICLE_COMPACTO = 0.0;
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly bool $enableProviderErrors,
     ) {}
 
     #[Route('/quote', name: 'provider_b_quote', methods: ['POST'])]
     public function quote(Request $request): Response
     {
-        $this->logger->info('Provider B: solicitud recibida');
+        $this->logger->info('Provider B: request received');
 
-        sleep(5); // Simula latencia ~5s
+        if ($this->enableProviderErrors) {
+            sleep(self::SLEEP_TIME);
+        }
 
-        if (random_int(1, 100) === 1) {
-            $this->logger->warning('Provider B: simulación de 1% (timeout)');
+        if ($this->enableProviderErrors && random_int(1, 100) <= self::TIMEOUT_PROBABILITY_PERCENT) {
+            $this->logger->warning('Provider B: simulate 1% (timeout)');
+            return new Response("error\nInternal server error", Response::HTTP_INTERNAL_SERVER_ERROR, ['Content-Type' => 'application/xml']);
         }
 
         try {

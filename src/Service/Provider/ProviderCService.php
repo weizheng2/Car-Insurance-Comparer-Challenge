@@ -10,14 +10,15 @@ use App\Enum\CarUse;
 use App\Exception\ProviderException;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Servicio Provider C (CSV). Incluye normalización de request/response.
+ * Request:
+ * driver_age,car_type,car_use (T/S/C, P/C)
+ * Response:
+ * price,currency
  *
- * Formato: driver_age,car_type,car_use (T/S/C, P/C)
- * Respuesta: price,currency
- *
- * @throws ProviderException En errores de conexión, timeout o respuesta inválida
+ * @throws ProviderException If the provider does not respond correctly
  */
 final class ProviderCService implements ProviderInterface
 {
@@ -33,38 +34,38 @@ final class ProviderCService implements ProviderInterface
         return 'provider-c';
     }
 
-    public function getQuote(QuoteRequest $request): float
+    public function requestQuote(QuoteRequest $request): ResponseInterface
     {
-        $this->logger->info('Provider C: solicitando presupuesto');
+        $this->logger->info('Provider C: request received');
 
-        try {
-            $body = $this->toProviderFormat($request);
+        $body = $this->toProviderFormat($request);
 
-            $response = $this->httpClient->request('POST', $this->url, [
-                'body' => $body,
-                'headers' => [
-                    'Content-Type' => 'text/csv',
-                    'Accept' => 'text/csv',
-                ],
-                'timeout' => $this->timeout,
-            ]);
+        return $this->httpClient->request('POST', $this->url, [
+            'body' => $body,
+            'headers' => [
+                'Content-Type' => 'text/csv',
+                'Accept' => 'text/csv',
+            ],
+            'timeout' => $this->timeout,
+        ]);
+    }
 
-            if ($response->getStatusCode() !== 200) {
-                throw ProviderException::httpError(
-                    $this->getName(),
-                    $response->getStatusCode(),
-                    $response->getContent(false)
-                );
-            }
-
-            return $this->parseResponse($response->getContent());
-        } catch (ProviderException $e) {
-            throw $e;
-        } catch (\Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface $e) {
-            throw ProviderException::timeout($this->getName(), $this->timeout);
-        } catch (\Throwable $e) {
-            throw ProviderException::connectionError($this->getName(), $e);
+    public function parseResponseContent(string $content): float
+    {
+        $lines = explode("\n", trim($content));
+        if (count($lines) < 2) {
+            throw ProviderException::invalidResponse($this->getName(), 'Invalid CSV response');
         }
+
+        $headers = str_getcsv($lines[0]);
+        $values = str_getcsv($lines[1]);
+        $data = array_combine($headers, $values);
+
+        if (!isset($data['price']) || !is_numeric($data['price'])) {
+            throw ProviderException::invalidResponse($this->getName(), 'Invalid price');
+        }
+
+        return (float) $data['price'];
     }
 
     private function toProviderFormat(QuoteRequest $request): string
@@ -82,21 +83,4 @@ final class ProviderCService implements ProviderInterface
         return "driver_age,car_type,car_use\n{$request->driverAge},{$carType},{$carUse}";
     }
 
-    private function parseResponse(string $response): float
-    {
-        $lines = explode("\n", trim($response));
-        if (count($lines) < 2) {
-            throw ProviderException::invalidResponse($this->getName(), 'Respuesta CSV inválida');
-        }
-
-        $headers = str_getcsv($lines[0]);
-        $values = str_getcsv($lines[1]);
-        $data = array_combine($headers, $values);
-
-        if (!isset($data['price']) || !is_numeric($data['price'])) {
-            throw ProviderException::invalidResponse($this->getName(), 'Precio inválido');
-        }
-
-        return (float) $data['price'];
-    }
 }

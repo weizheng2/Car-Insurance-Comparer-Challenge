@@ -10,14 +10,24 @@ use App\Enum\CarUse;
 use App\Exception\ProviderException;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Servicio Provider B (XML). Incluye normalización de request/response.
+ * Request:
+ *  <SolicitudCotizacion>
+ *     <EdadConductor>30</EdadConductor>
+ *     <TipoCoche>turismo</TipoCoche>
+ *     <UsoCoche>privado</UsoCoche>
+ *     <ConductorOcasional>NO</ConductorOcasional>
+ * </SolicitudCotizacion>
  *
- * Formato XML: EdadConductor, TipoCoche, UsoCoche
- * Respuesta: <RespuestaCotizacion><Precio>310.0</Precio><Moneda>EUR</Moneda></RespuestaCotizacion>
+ * Response: 
+ * <RespuestaCotizacion>
+ *     <Precio>310.0</Precio>
+ *     <Moneda>EUR</Moneda>
+ * </RespuestaCotizacion>
  *
- * @throws ProviderException En errores de conexión, timeout o respuesta inválida
+ * @throws ProviderException If the provider does not respond correctly
  */
 final class ProviderBService implements ProviderInterface
 {
@@ -33,38 +43,36 @@ final class ProviderBService implements ProviderInterface
         return 'provider-b';
     }
 
-    public function getQuote(QuoteRequest $request): float
+    public function requestQuote(QuoteRequest $request): ResponseInterface
     {
-        $this->logger->info('Provider B: solicitando presupuesto');
+        $this->logger->info('Provider B: request received');
 
-        try {
-            $body = $this->toProviderFormat($request);
+        $body = $this->toProviderFormat($request);
 
-            $response = $this->httpClient->request('POST', $this->url, [
-                'body' => $body,
-                'headers' => [
-                    'Content-Type' => 'application/xml',
-                    'Accept' => 'application/xml',
-                ],
-                'timeout' => $this->timeout,
-            ]);
+        return $this->httpClient->request('POST', $this->url, [
+            'body' => $body,
+            'headers' => [
+                'Content-Type' => 'application/xml',
+                'Accept' => 'application/xml',
+            ],
+            'timeout' => $this->timeout,
+        ]);
+    }
 
-            if ($response->getStatusCode() !== 200) {
-                throw ProviderException::httpError(
-                    $this->getName(),
-                    $response->getStatusCode(),
-                    $response->getContent(false)
-                );
-            }
+    public function parseResponseContent(string $content): float
+    {
+        $xml = @simplexml_load_string($content);
 
-            return $this->parseResponse($response->getContent());
-        } catch (ProviderException $e) {
-            throw $e;
-        } catch (\Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface $e) {
-            throw ProviderException::timeout($this->getName(), $this->timeout);
-        } catch (\Throwable $e) {
-            throw ProviderException::connectionError($this->getName(), $e);
+        if ($xml === false || !isset($xml->Precio)) {
+            throw ProviderException::invalidResponse($this->getName(), 'Respuesta XML inválida');
         }
+
+        $price = (string) $xml->Precio;
+        if (!is_numeric($price)) {
+            throw ProviderException::invalidResponse($this->getName(), 'Precio inválido');
+        }
+
+        return (float) $price;
     }
 
     private function toProviderFormat(QuoteRequest $request): string
@@ -86,19 +94,4 @@ final class ProviderBService implements ProviderInterface
         return $dom->saveXML($dom->documentElement);
     }
 
-    private function parseResponse(string $response): float
-    {
-        $xml = @simplexml_load_string($response);
-
-        if ($xml === false || !isset($xml->Precio)) {
-            throw ProviderException::invalidResponse($this->getName(), 'Respuesta XML inválida');
-        }
-
-        $price = (string) $xml->Precio;
-        if (!is_numeric($price)) {
-            throw ProviderException::invalidResponse($this->getName(), 'Precio inválido');
-        }
-
-        return (float) $price;
-    }
 }

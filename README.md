@@ -1,119 +1,226 @@
-# CHECK24 Insurance Quote Comparison API
+# API de Comparación de Cotizaciones de Seguros CHECK24
 
-A Symfony-based REST API for comparing car insurance quotes from multiple providers.
+API REST basada en Symfony para comparar cotizaciones de seguros de coche de múltiples proveedores. Desarrollada como parte del CHECK24 Fullstack Code Challenge.
 
-## Features
+## Resumen del Caso Técnico
 
-- **Multi-provider comparison**: Aggregates quotes from 3 insurance providers (A, B, C)
-- **Campaign discount**: Automatic 5% discount when campaign is active
-- **Parallel requests**: Fetches quotes from all providers simultaneously for optimal performance
-- **Graceful degradation**: Continues to function even when some providers fail
-- **OpenAPI documentation**: Interactive API documentation via Swagger UI
-- **Comprehensive testing**: Unit and integration tests for all business logic
+El backend recibe los datos del cliente desde el formulario del frontend, llama a las APIs de los proveedores (simulando aseguradoras externas), agrega y normaliza sus respuestas, aplica el descuento de campaña cuando está activa y devuelve las ofertas ordenadas.
 
-## Architecture
+**Requisitos principales:**
+- Endpoint principal `POST /calculate` que agrega cotizaciones de todos los proveedores
+- APIs mock de proveedores (cada uno con formato distinto: JSON, XML, CSV)
+- Descuento de campaña del 5% cuando está activa
+- Validar input, manejar errores, devolver resultados ordenados
+- Tests automatizados: cálculos de precios por proveedor, lógica de comparación/ordenación, descuento de campaña
+
+**Extras de perfil senior (implementados):**
+- Peticiones paralelas a los proveedores
+- Documentación OpenAPI/Swagger
+- Manejo robusto de errores para proveedores no disponibles
+- Logging con Monolog
+- Tercer proveedor con formato distinto (CSV)
+- Configuración Docker sencilla
+
+---
+
+## Enfoque de Implementación
+
+Este fue mi primer proyecto con Symfony. Me centré en **buenas prácticas generales de código** más que en herramientas específicas del framework:
+
+- **Principios SOLID** — servicios modulares, responsabilidad única
+- **Código legible y testeable** — nombres claros, acoplamiento mínimo
+- **Manejo explícito de errores** — desacoplado, respuestas consistentes
+- **Evitar sobreingeniería** — soluciones simples, trade-offs razonables
+
+Seguí la [documentación oficial de Symfony](https://symfony.com/doc) y las [Best Practices](https://symfony.com/doc/current/best_practices.html), y usé el [Symfony Demo](https://github.com/symfony/demo) como referencia de estructura.
+
+---
+
+## Arquitectura
 
 ```
 src/
-├── Controller/Api/          # API endpoints (thin controllers)
-├── DTO/                     # Data Transfer Objects
-│   ├── Request/            # Input DTOs with validation
-│   └── Response/           # Output DTOs
-├── Enum/                   # Type-safe enumerations
-├── Service/                # Business logic
-│   ├── Calculator/         # Quote aggregation
-│   ├── Campaign/          # Discount management
-│   ├── Pricing/           # Provider pricing logic
-│   └── Provider/          # Provider HTTP clients
-├── Exception/              # Custom exceptions
-└── EventSubscriber/        # Global error handling
+├── Controller/
+│   ├── CalculateController.php      # Recibe request, valida, delega al servicio
+│   └── Provider/
+│       ├── ProviderASimulator.php   # API mock JSON (2s, 10% errores)
+│       ├── ProviderBSimulator.php   # API mock XML (5s, 1% timeout)
+│       └── ProviderCSimulator.php   # API mock CSV (3s, 5% errores)
+├── DTO/
+│   ├── Request/
+│   │   └── QuoteRequest.php         # Validación de input, type safety
+│   └── Response/
+│       ├── CalculateResponse.php   # Estructura de respuesta agregada
+│       └── Quote.php               # Cotización individual con datos de precio
+├── Enum/
+│   ├── CarType.php                 # turismo, suv, compacto
+│   └── CarUse.php                  # private, commercial
+├── Service/
+│   ├── Campaign/
+│   │   └── CampaignService.php      # Activar/desactivar descuento, aplicar 5%
+│   ├── Provider/
+│   │   ├── ProviderInterface.php   # Contrato para todos los proveedores
+│   │   ├── ProviderAService.php    # Cliente HTTP + mapeo JSON
+│   │   ├── ProviderBService.php    # Cliente HTTP + mapeo XML
+│   │   └── ProviderCService.php    # Cliente HTTP + mapeo CSV
+│   └── Quote/
+│       └── QuoteComparisonService.php  # Orquesta proveedores, ordena, aplica campaña
+├── HttpClient/
+│   ├── InternalHttpClient.php      # Optimiza llamadas a localhost (sub-requests internas)
+│   └── InternalResponse.php
+├── Exception/
+│   └── ProviderException.php       # Errores de proveedor estandarizados
+└── EventSubscriber/
+    └── ExceptionSubscriber.php    # Manejo global de errores API (JSON, logging)
 ```
 
-## Requirements
+### Flujo de Diseño
+
+1. **Controller** — Recibe y valida el input, delega a `QuoteComparisonService`, devuelve JSON.
+2. **QuoteComparisonService** — Llama a todos los servicios de proveedores en paralelo vía `HttpClient::stream()`, normaliza respuestas, aplica descuento de campaña, ordena por precio.
+3. **Provider Services** — Cada uno implementa `ProviderInterface`: envía la petición en formato del proveedor, parsea la respuesta a nuestros DTOs.
+4. **Provider Simulators** — Controladores separados que simulan APIs externas (latencia, errores aleatorios).
+
+Cada proveedor gestiona su propio mapeo (formato request/response). Los DTOs compartidos garantizan contratos internos consistentes.
+
+---
+
+## Decisiones de Diseño
+
+### Enums (CarType, CarUse)
+
+- **Por qué:** Type safety, autocompletado en IDE, sin strings mágicos.
+- **Trade-off:** Algo más de boilerplate a cambio de un modelo de dominio más claro.
+
+### DTOs (QuoteRequest, Quote, CalculateResponse)
+
+- **Por qué:** Validación centralizada en los límites, type safety, contratos de API claros.
+- **Trade-off:** Clases extra a cambio de contratos explícitos y mantenimiento más fácil.
+
+### Manejo de Errores (ExceptionSubscriber)
+
+- Desacoplado de la lógica de negocio; un único punto para respuestas JSON consistentes.
+- Registra con severidad apropiada; en producción oculta detalles internos.
+- Patrón similar a middleware de .NET o manejadores de excepciones de Laravel.
+
+### Campaña: Variable de Entorno
+
+- **Por qué:** Simple para un demo, fácil de cambiar por entorno (dev/prod).
+- **Alternativas consideradas:**
+  - **Base de datos:** Flexible, control en runtime, pero añade dependencia de BD.
+  - **Servicio externo (LaunchDarkly, Unleash):** A/B testing, segmentación, pero coste externo.
+- **Para producción a escala:** Un sistema de feature flags en BD o externo permitiría A/B testing, segmentación geográfica/por usuario y campañas temporales sin redespliegues.
+
+### Peticiones Paralelas a Proveedores
+
+- Usa `HttpClient::stream()` de Symfony para peticiones concurrentes.
+- Referencia: [Boosting performance with Symfony HttpClient and parallel requests](https://dev.to/victorprdh/boosting-performance-with-symfony-httpclient-and-parallel-requests-14g7)
+- Timeout de 10 segundos por proveedor; los fallos no bloquean los resultados exitosos.
+
+### Internal HTTP Client
+
+- Cuando los proveedores apuntan a localhost, usa sub-requests internas en lugar de HTTP real (más rápido, sin red).
+- Fallback a HTTP real para URLs externas.
+
+### Sin Frontend
+
+- Enfoque en calidad del backend y la API.
+- OpenAPI/Swagger UI usado para mostrar y probar la API.
+
+---
+
+## Requisitos
 
 - PHP 8.4+
 - Composer
-- Docker & Docker Compose (optional, for containerized setup)
+- Docker y Docker Compose (opcional)
 
-## Quick Start
+---
 
-### Option 1: Docker (Recommended)
+## Inicio Rápido
+
+### Opción 1: Docker (Recomendado)
 
 ```bash
-# Build and start the container
+cd coding-challenge
 docker-compose up -d --build
 
-# The API is now available at http://localhost:8080
+# API disponible en http://localhost:8080
 ```
 
-### Option 2: Local Development
+### Opción 2: Desarrollo Local
 
 ```bash
-# Install dependencies
+cd coding-challenge
 composer install
 
-# Iniciar servidor (puerto 8080 - debe coincidir con PROVIDER_*_URL en .env)
+# Iniciar servidor (el puerto 8080 debe coincidir con PROVIDER_*_URL en .env)
 composer serve
-# o: php -S localhost:8080 -t public/
+# O: php -S localhost:8080 -t public/
 ```
 
-### Probar los endpoints
+> **Nota:** El endpoint `/calculate` llama internamente a las URLs de los proveedores. Asegúrate de que el servidor corre en el puerto configurado en `.env` (`PROVIDER_A_URL`, etc.).
 
-**1. Con REST Client (VS Code/Cursor)**  
-Abre `test-api.http` y ejecuta cada petición con "Send Request".
+---
 
-**2. Con PowerShell**
+## Probar la API
+
+### 1. REST Client (VS Code / Cursor)
+
+Abre `HttpTestScripts/test-api.http` y ejecuta cada petición con "Send Request".
+
+### 2. PowerShell
+
 ```powershell
-# Asegúrate de que el servidor está corriendo en otra terminal
-.\scripts\test-api.ps1
+.\HttpTestScripts\test-api.ps1
 
-# Con otro puerto
-.\scripts\test-api.ps1 -BaseUrl "http://localhost:8000"
+# Otro puerto
+.\HttpTestScripts\test-api.ps1 -BaseUrl "http://localhost:8000"
 ```
 
-**3. Con curl (Linux/Mac)**
+### 3. Shell (Linux / Mac)
+
 ```bash
-chmod +x scripts/test-api.sh
-./scripts/test-api.sh
+chmod +x HttpTestScripts/test-api.sh
+./HttpTestScripts/test-api.sh
 ```
 
-**4. Comandos curl individuales**
-```bash
-# Health
-curl http://localhost:8080/api/health
+### 4. curl manual
 
-# Provider A
+```bash
+# Proveedor A
 curl -X POST http://localhost:8080/api/provider-a/quote \
   -H "Content-Type: application/json" \
   -d '{"driver_age":30,"car_form":"compact","car_use":"private"}'
 
-# Calculate
+# Calculate (agrega todos los proveedores)
 curl -X POST http://localhost:8080/api/calculate \
   -H "Content-Type: application/json" \
   -d '{"driver_age":30,"car_type":"turismo","car_use":"private"}'
 ```
 
-> **Nota**: El endpoint `/api/calculate` llama internamente a los providers. Asegúrate de que el servidor corre en el puerto configurado en `.env` (PROVIDER_A_URL, etc.).
+---
 
-## API Endpoints
+## Endpoints de la API
 
-### Main Endpoints
+### Endpoints Principales
 
-| Method | Endpoint | Description |
+| Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| POST | `/api/calculate` | Compare insurance quotes |
-| GET | `/api/health` | Health check endpoint |
-| GET | `/api/doc` | OpenAPI documentation (Swagger UI) |
+| POST | `/api/calculate` | Compara cotizaciones de todos los proveedores |
+| GET | `/api/doc` | Documentación OpenAPI (Swagger UI) |
 
-### Provider Simulation Endpoints
+### Endpoints de Simulación de Proveedores
 
-| Method | Endpoint | Format | Latency | Error Rate |
-|--------|----------|--------|---------|------------|
+| Método | Endpoint | Formato | Latencia | % Errores |
+|--------|----------|---------|----------|-----------|
 | POST | `/api/provider-a/quote` | JSON | ~2s | 10% |
 | POST | `/api/provider-b/quote` | XML | ~5s | 1% timeout |
 | POST | `/api/provider-c/quote` | CSV | ~3s | 5% |
 
-## Usage Example
+---
+
+## Ejemplo de Uso
 
 ### Request
 
@@ -127,7 +234,7 @@ curl -X POST http://localhost:8080/api/calculate \
   }'
 ```
 
-Or with driver_age directly:
+O con `driver_age`:
 
 ```bash
 curl -X POST http://localhost:8080/api/calculate \
@@ -168,104 +275,96 @@ curl -X POST http://localhost:8080/api/calculate \
   ],
   "cheapest_provider": "provider-a",
   "failed_providers": [],
-  "message": null,
-  "metadata": {
-    "request_id": "calc_...",
-    "elapsed_ms": 5234.12,
-    "providers_queried": 3,
-    "timestamp": "2024-01-15T10:30:00+00:00"
-  }
+  "message": null
 }
 ```
 
-## Configuration
+---
 
-### Environment Variables
+## Configuración
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CAMPAIGN_ACTIVE` | `true` | Enable/disable 5% discount campaign |
-| `PROVIDER_A_URL` | `http://localhost:8080/api/provider-a/quote` | Provider A endpoint |
-| `PROVIDER_B_URL` | `http://localhost:8080/api/provider-b/quote` | Provider B endpoint |
-| `PROVIDER_C_URL` | `http://localhost:8080/api/provider-c/quote` | Provider C endpoint |
-| `PROVIDER_TIMEOUT` | `10` | HTTP request timeout in seconds |
+### Variables de Entorno
 
-### Campaign Toggle
+| Variable | Por defecto | Descripción |
+|----------|-------------|-------------|
+| `CAMPAIGN_ACTIVE` | `true` | Activar/desactivar descuento de campaña del 5% |
+| `CAMPAIGN_DISCOUNT_RATE` | `0.05` | Tasa de descuento cuando la campaña está activa (0.05 = 5%) |
+| `ENABLE_PROVIDER_ERRORS` | `true` | Activar latencia y errores aleatorios en simuladores (desactivar para tests) |
+| `APP_INTERNAL_BASE_URL` | `http://localhost:8080` | URL base para sub-requests internas |
+| `PROVIDER_A_URL` | `http://localhost:8080/api/provider-a/quote` | Endpoint proveedor A |
+| `PROVIDER_B_URL` | `http://localhost:8080/api/provider-b/quote` | Endpoint proveedor B |
+| `PROVIDER_C_URL` | `http://localhost:8080/api/provider-c/quote` | Endpoint proveedor C |
+| `PROVIDER_TIMEOUT` | `10` | Timeout de peticiones HTTP en segundos |
 
-The campaign can be enabled/disabled via the `CAMPAIGN_ACTIVE` environment variable:
+### Toggle de Campaña
 
 ```bash
-# Enable campaign (5% discount)
+# Activar campaña (5% descuento)
 CAMPAIGN_ACTIVE=true
 
-# Disable campaign (no discount)
+# Desactivar campaña (sin descuento)
 CAMPAIGN_ACTIVE=false
 ```
 
-## Testing
+---
+
+## Tests
 
 ```bash
-# Run all tests
+# Ejecutar todos los tests
 ./vendor/bin/phpunit
 
-# Run only unit tests
+# Solo tests unitarios
 ./vendor/bin/phpunit --testsuite Unit
 
-# Run with coverage report
+# Solo tests de integración
+./vendor/bin/phpunit --testsuite Integration
+
+# Informe de cobertura
 ./vendor/bin/phpunit --coverage-html coverage/
 ```
 
-## Pricing Logic
+**Cobertura de tests:**
+- **Cálculos de precios por proveedor** — `ProviderPriceCalculationTest`
+- **Lógica de comparación y ordenación** — `QuoteComparisonServiceTest`
+- **Aplicación de descuento de campaña** — `CampaignServiceTest`
+- **Endpoint Calculate** — `CalculateEndpointTest`
 
-### Provider A (JSON API)
-- Base: €217
-- Age: 18-24 (+€70), 25-55 (+€0), 56+ (+€90)
-- Vehicle: SUV (+€100), Compact (+€10)
-- Commercial: +15%
+---
 
-### Provider B (XML API)
-- Base: €250
-- Age: 18-29 (+€50), 30-59 (+€20), 60+ (+€100)
-- Vehicle: Turismo (+€30), SUV (+€200), Compacto (+€0)
-- Commercial: No adjustment
+## Lógica de Precios
 
-### Provider C (CSV API)
-- Base: €195
-- Age: 18-25 (+€80), 26-45 (+€10), 46-65 (+€30), 66+ (+€120)
-- Vehicle: Turismo (+€25), SUV (+€150), Compacto (+€5)
-- Commercial: +20%
+### Proveedor A (API JSON)
+- Base: 217€
+- Edad: 18-24 (+70€), 25-55 (+0€), 56+ (+90€)
+- Vehículo: SUV (+100€), Compact (+10€) — Turismo y Compacto se mapean a compact
+- Uso comercial: +15%
 
-## Design Decisions
+### Proveedor B (API XML)
+- Base: 250€
+- Edad: 18-29 (+50€), 30-59 (+20€), 60+ (+100€)
+- Vehículo: Turismo (+30€), SUV (+200€), Compacto (+0€)
+- Uso comercial: Sin ajuste
 
-### Why Environment Variables for Campaign?
-- Simple for demo/coding challenge
-- CI/CD friendly
-- Per-environment configuration
+### Proveedor C (API CSV)
+- Base: 195€
+- Edad: 18-25 (+80€), 26-45 (+10€), 46-65 (+30€), 66+ (+120€)
+- Vehículo: Turismo (+25€), SUV (+150€), Compacto (+5€)
+- Uso comercial: +20%
 
-**Production alternative**: Database-backed feature flags (e.g., LaunchDarkly) for runtime control, A/B testing, and user targeting.
+---
 
-### Why Separate Pricing Calculators?
-- Single Responsibility Principle
-- Easy to test pricing logic in isolation
-- Easy to add new providers (Open/Closed Principle)
+## Mejoras Futuras
 
-### Why DTOs?
-- Type safety
-- Validation at boundaries
-- Clear API contracts
-- IDE autocomplete support
+- **Caché:** Redis/Memcached para respuestas de proveedores
+- **Circuit breaker:** Limitar impacto de proveedores poco fiables
+- **Rate limiting:** Protección contra abuso
+- **Procesamiento async:** Arquitectura basada en colas para alta carga
+- **Base de datos:** Persistir cotizaciones para análisis
+- **Monitoring:** APM (Datadog, New Relic)
 
-## Future Improvements
+---
 
-With more time, the following could be added:
-
-1. **Caching**: Redis/Memcached for provider responses
-2. **Circuit Breaker**: Prevent cascading failures from unreliable providers
-3. **Rate Limiting**: Protect against API abuse
-4. **Async Processing**: Queue-based architecture for high load
-5. **Database**: Persist quotes for analytics and history
-6. **Monitoring**: APM integration (Datadog, New Relic)
-
-## Author
+## Autor
 
 CHECK24 Coding Challenge Submission
