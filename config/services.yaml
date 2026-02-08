@@ -1,23 +1,60 @@
 # yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
 
-# This file is the entry point to configure your own services.
-# Files in the packages/ subdirectory configure your dependencies.
-# See also https://symfony.com/doc/current/service_container/import.html
-
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    campaign.active: '%env(bool:CAMPAIGN_ACTIVE)%'
+    campaign.discount_rate: 0.05
+    provider.a.url: '%env(PROVIDER_A_URL)%'
+    provider.b.url: '%env(PROVIDER_B_URL)%'
+    provider.c.url: '%env(PROVIDER_C_URL)%'
+    provider.timeout: '%env(int:PROVIDER_TIMEOUT)%'
 
 services:
-    # default configuration for services in *this* file
     _defaults:
-        autowire: true      # Automatically injects dependencies in your services.
-        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        autowire: true
+        autoconfigure: true
 
-    # makes classes in src/ available to be used as services
-    # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    # ==========================================
+    # Campaign
+    # ==========================================
+    App\Service\Campaign\CampaignService:
+        arguments:
+            $campaignActive: '%campaign.active%'
+            $discountRate: '%campaign.discount_rate%'
+
+    # ==========================================
+    # Provider Clients (implementan ProviderInterface)
+    # ==========================================
+    App\Provider\ProviderA\ProviderAClient:
+        arguments:
+            $url: '%provider.a.url%'
+            $timeout: '%provider.timeout%'
+        tags: ['app.provider']
+
+    App\Provider\ProviderB\ProviderBClient:
+        arguments:
+            $url: '%provider.b.url%'
+            $timeout: '%provider.timeout%'
+        tags: ['app.provider']
+
+    App\Provider\ProviderC\ProviderCClient:
+        arguments:
+            $url: '%provider.c.url%'
+            $timeout: '%provider.timeout%'
+        tags: ['app.provider']
+
+    # ==========================================
+    # QuoteComparisonService (orquestador principal)
+    # ==========================================
+    App\Service\QuoteComparisonService:
+        arguments:
+            $providers: !tagged_iterator 'app.provider'
+
+    # ==========================================
+    # Exception Subscriber
+    # ==========================================
+    App\EventSubscriber\ExceptionSubscriber:
+        arguments:
+            $environment: '%kernel.environment%'
