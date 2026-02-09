@@ -1,4 +1,7 @@
 nelmio_api_doc:
+    areas:
+        path_patterns:
+            - ^/api # Solo incluir rutas que empiecen con /api
     documentation:
         info:
             title: CHECK24 Insurance Quote Comparison API
@@ -25,30 +28,195 @@ nelmio_api_doc:
                                             minimum: 18
                                             maximum: 120
                                             description: Driver age in years
+                                            example: 30
                                         driver_birthday:
                                             type: string
                                             format: date
                                             description: Alternative to driver_age (YYYY-MM-DD)
+                                            example: "1994-05-15"
                                         car_type:
                                             type: string
                                             enum: [turismo, suv, compacto]
+                                            example: turismo
                                         car_use:
                                             type: string
                                             enum: [private, commercial]
+                                            example: private
                     responses:
                         '200':
                             description: Success - quotes from available providers
+                            content:
+                                application/json:
+                                    schema:
+                                        type: object
+                                        properties:
+                                            success:
+                                                type: boolean
+                                            campaign_active:
+                                                type: boolean
+                                            discount_percentage:
+                                                type: number
+                                            quotes:
+                                                type: array
+                                                items:
+                                                    type: object
+                                            cheapest_provider:
+                                                type: string
+                                            failed_providers:
+                                                type: array
+                                                items:
+                                                    type: string
                         '400':
                             description: Validation failed
             /api/provider-a/quote:
                 post:
                     summary: Provider A quote (JSON)
-                    description: Mock provider - 2s latency, 10% error rate
+                    description: 'Mock provider - 2s latency, 10%% error rate. Base 217€, age adjustments, vehicle adjustments, commercial +15%%'
+                    requestBody:
+                        required: true
+                        content:
+                            application/json:
+                                schema:
+                                    type: object
+                                    required:
+                                        - driver_age
+                                        - car_form
+                                        - car_use
+                                    properties:
+                                        driver_age:
+                                            type: integer
+                                            minimum: 18
+                                            maximum: 120
+                                            description: Driver age in years
+                                            example: 30
+                                        car_form:
+                                            type: string
+                                            enum: [sedan, compact, suv]
+                                            description: Vehicle form (sedan/compact map to compact, suv maps to suv)
+                                            example: compact
+                                        car_use:
+                                            type: string
+                                            enum: [private, commercial]
+                                            example: private
+                    responses:
+                        '200':
+                            description: Success
+                            content:
+                                application/json:
+                                    schema:
+                                        type: object
+                                        properties:
+                                            price:
+                                                type: string
+                                                example: "295 EUR"
+                        '400':
+                            description: Invalid request
+                        '500':
+                            description: 'Simulated error (10%% chance)'
             /api/provider-b/quote:
                 post:
                     summary: Provider B quote (XML)
-                    description: Mock provider - 5s latency, 1% error rate
+                    description: 'Mock provider - 5s latency, 1%% timeout rate. Base 250€, age adjustments, vehicle adjustments'
+                    requestBody:
+                        required: true
+                        content:
+                            application/xml:
+                                schema:
+                                    type: object
+                                    xml:
+                                        name: SolicitudCotizacion
+                                    required:
+                                        - EdadConductor
+                                        - TipoCoche
+                                        - UsoCoche
+                                    properties:
+                                        EdadConductor:
+                                            type: integer
+                                            xml:
+                                                name: EdadConductor
+                                            description: Driver age in years
+                                            example: 30
+                                        TipoCoche:
+                                            type: string
+                                            xml:
+                                                name: TipoCoche
+                                            enum: [turismo, suv, compacto]
+                                            example: turismo
+                                        UsoCoche:
+                                            type: string
+                                            xml:
+                                                name: UsoCoche
+                                            enum: [privado, comercial]
+                                            example: privado
+                                        ConductorOcasional:
+                                            type: string
+                                            xml:
+                                                name: ConductorOcasional
+                                            example: NO
+                                example: |
+                                    <SolicitudCotizacion>
+                                        <EdadConductor>30</EdadConductor>
+                                        <TipoCoche>turismo</TipoCoche>
+                                        <UsoCoche>privado</UsoCoche>
+                                        <ConductorOcasional>NO</ConductorOcasional>
+                                    </SolicitudCotizacion>
+                    responses:
+                        '200':
+                            description: Success
+                            content:
+                                application/xml:
+                                    schema:
+                                        type: object
+                                        xml:
+                                            name: RespuestaCotizacion
+                                        properties:
+                                            Precio:
+                                                type: number
+                                                xml:
+                                                    name: Precio
+                                                example: 310.0
+                                            Moneda:
+                                                type: string
+                                                xml:
+                                                    name: Moneda
+                                                example: EUR
+                                    example: |
+                                        <RespuestaCotizacion>
+                                            <Precio>310.0</Precio>
+                                            <Moneda>EUR</Moneda>
+                                        </RespuestaCotizacion>
+                        '400':
+                            description: Invalid XML
+                        '500':
+                            description: 'Simulated timeout (1%% chance)'
             /api/provider-c/quote:
                 post:
                     summary: Provider C quote (CSV)
-                    description: Mock provider - 3s latency, 5% error rate
+                    description: 'Mock provider - 3s latency, 5%% error rate. Base 195€, age brackets, vehicle adjustments, commercial +20%%'
+                    requestBody:
+                        required: true
+                        content:
+                            text/csv:
+                                schema:
+                                    type: string
+                                    example: |
+                                        driver_age,car_type,car_use
+                                        30,T,P
+                                    description: |
+                                        CSV format with headers. 
+                                        car_type: T=turismo, S=suv, C=compacto
+                                        car_use: P=private, C=commercial
+                    responses:
+                        '200':
+                            description: Success
+                            content:
+                                text/csv:
+                                    schema:
+                                        type: string
+                                        example: |
+                                            price,currency
+                                            230.00,EUR
+                        '400':
+                            description: Invalid CSV
+                        '500':
+                            description: 'Simulated error (5%% chance)'

@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api')]
 final class CalculateController extends AbstractController
@@ -19,6 +20,7 @@ final class CalculateController extends AbstractController
     public function __construct(
         private readonly QuoteComparisonService $comparisonService,
         private readonly LoggerInterface $logger,
+        private readonly ValidatorInterface $validator,
     ) {}
 
     #[Route('/calculate', name: 'api_calculate', methods: ['POST'])]
@@ -29,6 +31,21 @@ final class CalculateController extends AbstractController
         try {
             $data = $this->parseRequest($request);
             $quoteRequest = QuoteRequest::fromArray($data);
+            
+            // Validate the DTO using Symfony Validator
+            $violations = $this->validator->validate($quoteRequest);
+            if (count($violations) > 0) {
+                $errors = [];
+                foreach ($violations as $violation) {
+                    $errors[] = $violation->getMessage();
+                }
+                $this->logger->warning('Validation failed', ['errors' => $errors]);
+                return new JsonResponse([
+                    'error' => 'Validation failed',
+                    'details' => $errors,
+                ], Response::HTTP_BAD_REQUEST);
+            }
+            
             $response = $this->comparisonService->compare($quoteRequest);
 
             return new JsonResponse($response->toArray(), Response::HTTP_OK);
