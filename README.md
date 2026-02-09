@@ -240,9 +240,8 @@ curl -X POST http://localhost:8080/api/calculate \
 
 ## Tests
 
-```bash
 # Ejecutar todos los tests
-./vendor/bin/phpunit
+docker compose exec app ./vendor/bin/phpunit
 
 **Cobertura de tests:**
 - **Cálculos de precios por proveedor** — `ProviderPriceCalculationTest`
@@ -262,5 +261,4 @@ curl -X POST http://localhost:8080/api/calculate \
 ---
 
 ## Autor
-
 Wei Zheng
