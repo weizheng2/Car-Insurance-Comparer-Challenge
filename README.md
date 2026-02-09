@@ -252,11 +252,11 @@ docker compose exec app ./vendor/bin/phpunit
 ---
 
 ## Mejoras Futuras
-- **Clean/Hexagonal**: separa el dominio de la infraestructura, facilitando tests, cambios de proveedores y evolución independiente de la lógica.
+- **Clean/Hexagonal**: Separa el dominio de la infraestructura, facilitando tests, cambios de proveedores y evolución independiente de la lógica.
 - **Caché:** Redis para respuestas de proveedores
 - **Rate limiting:** Protección frente a abuso y consumo excesivo de la API.
 - **Base de datos:** Persistir cotizaciones para análisis
-- **Monitoring:**
+- **Monitoreo y observabilidad:** Integrar soluciones como Sentry o herramientas de logging estructurado para capturar errores, métricas y trazas.
 
 ---
 
