@@ -138,8 +138,11 @@ Además, estos ajustes podrían ser gestionados por perfiles no técnicos (marke
 
 ```bash
 cd coding-challenge
-docker-compose up -d --build
-http://localhost:8080/api/doc
+docker-compose build
+docker-compose up -d
+
+# Accede a la documentación en:
+# http://localhost:8080/api/doc
 ```
 
 ### Opción 2: Desarrollo Local
