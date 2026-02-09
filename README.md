@@ -84,6 +84,77 @@ src/
 Cada proveedor gestiona su propio mapeo (formato request/response).
 Los DTOs compartidos garantizan contratos internos consistentes.
 
+### Diagrama de Flujo
+
+```mermaid
+flowchart TD
+    A[Cliente: POST /api/calculate] --> B[CalculateController]
+    B --> C{Validar Request}
+    C -->|Error| D[Retornar 400 Bad Request]
+    C -->|OK| E[QuoteComparisonService.compare]
+    
+    E --> F[CampaignService.getDiscountRate]
+    F --> G[Iniciar peticiones paralelas]
+    
+    G --> H1[ProviderAService.requestQuote]
+    G --> H2[ProviderBService.requestQuote]
+    G --> H3[ProviderCService.requestQuote]
+    
+    H1 --> I1[HTTP POST Provider A<br/>JSON format]
+    H2 --> I2[HTTP POST Provider B<br/>XML format]
+    H3 --> I3[HTTP POST Provider C<br/>CSV format]
+    
+    I1 --> J1[ProviderASimulator]
+    I2 --> J2[ProviderBSimulator]
+    I3 --> J3[ProviderCSimulator]
+    
+    J1 --> K1{Simular latencia<br/>y errores}
+    J2 --> K2{Simular latencia<br/>y errores}
+    J3 --> K3{Simular latencia<br/>y errores}
+    
+    K1 -->|Error 500 10%| L1[Error]
+    K1 -->|OK| M1[Calcular precio<br/>Provider A]
+    K2 -->|Timeout 1%| L2[Timeout]
+    K2 -->|OK| M2[Calcular precio<br/>Provider B]
+    K3 -->|Error 5%| L3[Error]
+    K3 -->|OK| M3[Calcular precio<br/>Provider C]
+    
+    M1 --> N1[Response JSON]
+    M2 --> N2[Response XML]
+    M3 --> N3[Response CSV]
+    
+    N1 --> O[HttpClient.stream<br/>Procesar respuestas]
+    N2 --> O
+    N3 --> O
+    L1 --> O
+    L2 --> O
+    L3 --> O
+    
+    O --> P{Timeout >10s?}
+    P -->|Sí| Q[Cancelar y marcar<br/>como fallido]
+    P -->|No| R{Status 200?}
+    
+    R -->|No| Q
+    R -->|Sí| S[Parsear respuesta<br/>a precio numérico]
+    
+    S --> T[Aplicar descuento<br/>de campaña]
+    Q --> U[Agregar a<br/>failed_providers]
+    T --> V[Crear Quote DTO]
+    
+    V --> W[Agregar a quotes]
+    U --> X[Ordenar quotes<br/>por precio ascendente]
+    W --> X
+    
+    X --> Y[CalculateResponse]
+    Y --> Z[Retornar JSON<br/>200 OK]
+    
+    style A fill:#e1f5ff
+    style Z fill:#d4edda
+    style D fill:#f8d7da
+    style Q fill:#fff3cd
+    style O fill:#d1ecf1
+```
+
 ---
 
 ## Decisiones de Diseño
