@@ -32,18 +32,9 @@ final class CalculateController extends AbstractController
             $data = $this->parseRequest($request);
             $quoteRequest = QuoteRequest::fromArray($data);
             
-            // Validate the DTO using Symfony Validator
-            $violations = $this->validator->validate($quoteRequest);
-            if (count($violations) > 0) {
-                $errors = [];
-                foreach ($violations as $violation) {
-                    $errors[] = $violation->getMessage();
-                }
-                $this->logger->warning('Validation failed', ['errors' => $errors]);
-                return new JsonResponse([
-                    'error' => 'Validation failed',
-                    'details' => $errors,
-                ], Response::HTTP_BAD_REQUEST);
+            $validationResponse = $this->handleValidation($quoteRequest);
+            if ($validationResponse instanceof JsonResponse) {
+                return $validationResponse;
             }
             
             $response = $this->comparisonService->compare($quoteRequest);
@@ -71,5 +62,22 @@ final class CalculateController extends AbstractController
         }
 
         return $data;
+    }
+
+    private function handleValidation(QuoteRequest $quoteRequest): JsonResponse|null
+    {
+        $violations = $this->validator->validate($quoteRequest);
+        if (count($violations) > 0) {
+            $errors = [];
+            foreach ($violations as $violation) {
+                $errors[] = $violation->getMessage();
+            }
+            $this->logger->warning('Validation failed', ['errors' => $errors]);
+            return new JsonResponse([
+                'error' => 'Validation failed',
+                'details' => $errors,
+            ], Response::HTTP_BAD_REQUEST);
+        }
+        return null;
     }
 }

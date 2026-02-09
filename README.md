@@ -324,6 +324,7 @@ docker compose exec app ./vendor/bin/phpunit
 
 ## Mejoras Futuras
 - **Clean/Hexagonal**: Separa el dominio de la infraestructura, facilitando tests, cambios de proveedores y evolución independiente de la lógica.
+- **Dividir DTOs:** Entidades más pequeñas y específicas, o agruparlos por contexto funcional a medida que crezca el número de requisitos o la complejidad.
 - **Caché:** Redis para respuestas de proveedores
 - **Rate limiting:** Protección frente a abuso y consumo excesivo de la API.
 - **Base de datos:** Persistir cotizaciones para análisis
