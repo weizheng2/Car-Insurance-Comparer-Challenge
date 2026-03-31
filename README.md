@@ -1,4 +1,4 @@
-# Coding Challenge Backend
+# Car Insurance Comparer Challenge
 
 ## Resumen de los requisitos
 
