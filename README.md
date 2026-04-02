@@ -1,153 +1,153 @@
 # Coding Challenge Backend
 
-## Resumen de los requisitos
+## Requirements Summary
 
-El backend recibe los datos del cliente desde el formulario del frontend, llama a las APIs de los proveedores (simulando aseguradoras externas), agrega y normaliza sus respuestas, aplica el descuento de campaña cuando está activa y devuelve las ofertas ordenadas.
+The backend receives customer data from the frontend form, calls provider APIs (simulating external insurers), aggregates and normalizes their responses, applies the campaign discount when active, and returns sorted offers.
 
-**Requisitos principales:**
-- Endpoint principal `POST /calculate` que agrega cotizaciones de todos los proveedores
-- APIs mock de proveedores (cada uno con formato distinto: JSON, XML)
-- Descuento de campaña del 5% cuando está activa
-- Validar input, manejar errores, devolver resultados ordenados
-- Tests automatizados: cálculos de precios por proveedor, lógica de comparación/ordenación, descuento de campaña
+**Main requirements:**
+- Main endpoint `POST /calculate` that aggregates quotes from all providers
+- Mock provider APIs (each with a different format: JSON, XML)
+- 5% campaign discount when active
+- Validate input, handle errors, return sorted results
+- Automated tests: provider price calculations, comparison/sorting logic, campaign discount
 
-**Extras de perfil senior (implementados):**
-- Peticiones paralelas a los proveedores
-- Documentación OpenAPI/Swagger
-- Manejo robusto de errores para proveedores no disponibles
-- Logging con Monolog
-- Tercer proveedor con formato distinto (CSV)
-- Configuración Docker sencilla
-
----
-
-## Enfoque de Implementación
-
-Este fue mi primer proyecto con Symfony. 
-Me centré en **buenas prácticas generales de código** más que en herramientas específicas del framework:
-
-- **Principios SOLID** — servicios modulares, responsabilidad única
-- **Código legible y testeable** — nombres claros, acoplamiento mínimo
-- **Código escalable** — añadir o modificar proveedores o requisitos con cambios mínimos en el flujo existente
-- **Manejo explícito de errores** — desacoplado, respuestas consistentes
-- **Evitar sobreingeniería**
-
-Seguí la [documentación oficial de Symfony](https://symfony.com/doc) y las [Best Practices](https://symfony.com/doc/current/best_practices.html), y usé el [Symfony Demo](https://github.com/symfony/demo) como referencia de estructura.
+**Senior-level extras (implemented):**
+- Parallel requests to providers
+- OpenAPI/Swagger documentation
+- Robust error handling for unavailable providers
+- Logging with Monolog
+- Third provider with a different format (CSV)
+- Simple Docker setup
 
 ---
 
-## Arquitectura
+## Implementation Approach
+
+This was my first Symfony project.
+I focused on **general code best practices** rather than framework-specific tooling:
+
+- **SOLID principles** - modular services, single responsibility
+- **Readable and testable code** - clear naming, minimal coupling
+- **Scalable code** - add or modify providers/requirements with minimal changes to the existing flow
+- **Explicit error handling** - decoupled, consistent responses
+- **Avoid overengineering**
+
+I followed the [official Symfony documentation](https://symfony.com/doc) and [Best Practices](https://symfony.com/doc/current/best_practices.html), and used [Symfony Demo](https://github.com/symfony/demo) as a structure reference.
+
+---
+
+## Architecture
 
 ```
 src/
 ├── Controller/
-│   ├── CalculateController.php      # Recibe request, valida, delega al servicio
+│   ├── CalculateController.php      # Receives request, validates, delegates to service
 │   └── Provider/
-│       ├── ProviderASimulator.php   # API mock JSON (2s, 10% errores)
-│       ├── ProviderBSimulator.php   # API mock XML (5s, 1% timeout)
-│       └── ProviderCSimulator.php   # API mock CSV (3s, 5% errores)
+│       ├── ProviderASimulator.php   # JSON mock API (2s, 10% errors)
+│       ├── ProviderBSimulator.php   # XML mock API (5s, 1% timeout)
+│       └── ProviderCSimulator.php   # CSV mock API (3s, 5% errors)
 ├── DTO/
 │   ├── Request/
-│   │   └── QuoteRequest.php         # Validación de input, type safety
+│   │   └── QuoteRequest.php         # Input validation, type safety
 │   └── Response/
-│       ├── CalculateResponse.php   # Estructura de respuesta agregada
-│       └── Quote.php               # Cotización individual con datos de precio
+│       ├── CalculateResponse.php    # Aggregated response structure
+│       └── Quote.php                # Individual quote with pricing data
 ├── Enum/
-│   ├── CarType.php                 # turismo, suv, compacto
-│   └── CarUse.php                  # private, commercial
+│   ├── CarType.php                  # turismo, suv, compacto
+│   └── CarUse.php                   # private, commercial
 ├── Service/
 │   ├── Campaign/
-│   │   └── CampaignService.php      # Activar/desactivar descuento, aplicar 5%
+│   │   └── CampaignService.php      # Enable/disable discount, apply 5%
 │   ├── Provider/
-│   │   ├── ProviderInterface.php   # Contrato para todos los proveedores
-│   │   ├── ProviderAService.php    # Cliente HTTP + mapeo JSON
-│   │   ├── ProviderBService.php    # Cliente HTTP + mapeo XML
-│   │   └── ProviderCService.php    # Cliente HTTP + mapeo CSV
+│   │   ├── ProviderInterface.php    # Contract for all providers
+│   │   ├── ProviderAService.php     # HTTP client + JSON mapping
+│   │   ├── ProviderBService.php     # HTTP client + XML mapping
+│   │   └── ProviderCService.php     # HTTP client + CSV mapping
 │   └── Quote/
-│       └── QuoteComparisonService.php  # Orquesta proveedores, ordena, aplica campaña
+│       └── QuoteComparisonService.php  # Orchestrates providers, sorts, applies campaign
 ├── HttpClient/
-│   ├── InternalHttpClient.php      # Optimiza llamadas a localhost (sub-requests internas)
+│   ├── InternalHttpClient.php       # Optimizes localhost calls (internal sub-requests)
 │   └── InternalResponse.php
 ├── Exception/
-│   └── ProviderException.php       # Errores de proveedor estandarizados
+│   └── ProviderException.php        # Standardized provider errors
 └── EventSubscriber/
-    └── ExceptionSubscriber.php    # Manejo global de errores API (JSON, logging)
+    └── ExceptionSubscriber.php      # Global API error handling (JSON, logging)
 ```
 
-### Flujo de Diseño
+### Design Flow
 
-1. **Controller** — Recibe y valida el input, delega a `QuoteComparisonService`, devuelve JSON.
-2. **QuoteComparisonService** — Llama a todos los servicios de proveedores en paralelo vía `HttpClient::stream()`, normaliza respuestas, aplica descuento de campaña, ordena por precio.
-3. **Provider Services** — Cada uno implementa `ProviderInterface`: envía la petición en formato del proveedor, parsea la respuesta a nuestros DTOs.
-4. **Provider Simulators** — Controladores separados que simulan APIs externas (latencia, errores aleatorios).
+1. **Controller** - Receives and validates input, delegates to `QuoteComparisonService`, returns JSON.
+2. **QuoteComparisonService** - Calls all provider services in parallel via `HttpClient::stream()`, normalizes responses, applies campaign discount, sorts by price.
+3. **Provider Services** - Each implements `ProviderInterface`: sends request in provider-specific format, parses response into internal DTOs.
+4. **Provider Simulators** - Separate controllers that simulate external APIs (latency, random errors).
 
-Cada proveedor gestiona su propio mapeo (formato request/response).
-Los DTOs compartidos garantizan contratos internos consistentes.
+Each provider handles its own request/response mapping.
+Shared DTOs ensure consistent internal contracts.
 
-### Diagrama de Flujo
+### Flow Diagram
 
 ```mermaid
 flowchart TD
-    A[Cliente: POST /api/calculate] --> B[CalculateController]
-    B --> C{Validar Request}
-    C -->|Error| D[Retornar 400 Bad Request]
+    A[Client: POST /api/calculate] --> B[CalculateController]
+    B --> C{Validate Request}
+    C -->|Error| D[Return 400 Bad Request]
     C -->|OK| E[QuoteComparisonService.compare]
-    
+
     E --> F[CampaignService.getDiscountRate]
-    F --> G[Iniciar peticiones paralelas]
-    
+    F --> G[Start parallel requests]
+
     G --> H1[ProviderAService.requestQuote]
     G --> H2[ProviderBService.requestQuote]
     G --> H3[ProviderCService.requestQuote]
-    
+
     H1 --> I1[HTTP POST Provider A<br/>JSON format]
     H2 --> I2[HTTP POST Provider B<br/>XML format]
     H3 --> I3[HTTP POST Provider C<br/>CSV format]
-    
+
     I1 --> J1[ProviderASimulator]
     I2 --> J2[ProviderBSimulator]
     I3 --> J3[ProviderCSimulator]
-    
-    J1 --> K1{Simular latencia<br/>y errores}
-    J2 --> K2{Simular latencia<br/>y errores}
-    J3 --> K3{Simular latencia<br/>y errores}
-    
-    K1 -->|Error 500 10%| L1[Error]
-    K1 -->|OK| M1[Calcular precio<br/>Provider A]
+
+    J1 --> K1{Simulate latency<br/>and errors}
+    J2 --> K2{Simulate latency<br/>and errors}
+    J3 --> K3{Simulate latency<br/>and errors}
+
+    K1 -->|500 Error 10%| L1[Error]
+    K1 -->|OK| M1[Calculate price<br/>Provider A]
     K2 -->|Timeout 1%| L2[Timeout]
-    K2 -->|OK| M2[Calcular precio<br/>Provider B]
+    K2 -->|OK| M2[Calculate price<br/>Provider B]
     K3 -->|Error 5%| L3[Error]
-    K3 -->|OK| M3[Calcular precio<br/>Provider C]
-    
-    M1 --> N1[Response JSON]
-    M2 --> N2[Response XML]
-    M3 --> N3[Response CSV]
-    
-    N1 --> O[HttpClient.stream<br/>Procesar respuestas]
+    K3 -->|OK| M3[Calculate price<br/>Provider C]
+
+    M1 --> N1[JSON Response]
+    M2 --> N2[XML Response]
+    M3 --> N3[CSV Response]
+
+    N1 --> O[HttpClient.stream<br/>Process responses]
     N2 --> O
     N3 --> O
     L1 --> O
     L2 --> O
     L3 --> O
-    
+
     O --> P{Timeout >10s?}
-    P -->|Sí| Q[Cancelar y marcar<br/>como fallido]
+    P -->|Yes| Q[Cancel and mark<br/>as failed]
     P -->|No| R{Status 200?}
-    
+
     R -->|No| Q
-    R -->|Sí| S[Parsear respuesta<br/>a precio numérico]
-    
-    S --> T[Aplicar descuento<br/>de campaña]
-    Q --> U[Agregar a<br/>failed_providers]
-    T --> V[Crear Quote DTO]
-    
-    V --> W[Agregar a quotes]
-    U --> X[Ordenar quotes<br/>por precio ascendente]
+    R -->|Yes| S[Parse response<br/>to numeric price]
+
+    S --> T[Apply campaign<br/>discount]
+    Q --> U[Add to<br/>failed_providers]
+    T --> V[Create Quote DTO]
+
+    V --> W[Add to quotes]
+    U --> X[Sort quotes<br/>by ascending price]
     W --> X
-    
+
     X --> Y[CalculateResponse]
-    Y --> Z[Retornar JSON<br/>200 OK]
-    
+    Y --> Z[Return JSON<br/>200 OK]
+
     style A fill:#e1f5ff
     style Z fill:#d4edda
     style D fill:#f8d7da
@@ -157,66 +157,66 @@ flowchart TD
 
 ---
 
-## Decisiones de Diseño
+## Design Decisions
 
 ### Enums (CarType, CarUse)
 
-- **Type safety** y eliminación de strings mágicos, con un ligero aumento de boilerplate a cambio de un modelo de dominio más claro.
+- **Type safety** and removal of magic strings, with a slight increase in boilerplate in exchange for a clearer domain model.
 
 ### DTOs (QuoteRequest, Quote, CalculateResponse)
 
-- **Validación**, type safety y contratos de API explícitos, con mayor control y rigidez sobre los envíos y recibos. Introduce clases adicionales, pero facilita el mantenimiento y la evolución del sistema.
+- **Validation**, type safety, and explicit API contracts for stronger control over inputs and outputs. It adds classes, but improves maintainability and system evolution.
 
-### Manejo de Errores (ExceptionSubscriber)
+### Error Handling (ExceptionSubscriber)
 
-- Desacoplado de la lógica de negocio, con un único punto de entrada para respuestas JSON consistentes.  
-- Registro con severidad apropiada, en producción se ocultan detalles internos.  
-- Enfoque similar a middleware de .NET o manejadores de excepciones en Laravel.
+- Decoupled from business logic, with a single entry point for consistent JSON responses.
+- Logs with appropriate severity; internal details are hidden in production.
+- Similar approach to .NET middleware or Laravel exception handlers.
 
-### Campaña: Variable de Entorno
+### Campaign: Environment Variable
 
-- Solución simple y adecuada para una demo, fácilmente configurable por entorno (dev/prod).
-- **Alternativas consideradas:**
-  - **Base de datos:** mayor flexibilidad y control en runtime, a costa de añadir dependencia de BD.
-  - **Servicio externo:** A/B testing y segmentación avanzada, con coste y dependencia externa.
-- **Escalando a producción:** usar base de datos o servicio externo permitiría A/B testing, segmentación geográfica o por usuario y campañas temporales sin necesidad de redespliegues.
-Además, estos ajustes podrían ser gestionados por perfiles no técnicos (marketing, ventas, etc.) sin necesidad de tocar código.
+- A simple and suitable solution for a demo, easily configurable per environment (dev/prod).
+- **Alternatives considered:**
+  - **Database:** more flexibility and runtime control, at the cost of adding a DB dependency.
+  - **External service:** A/B testing and advanced segmentation, with extra cost and external dependency.
+- **Scaling to production:** using a database or external service would enable A/B testing, geographic/user segmentation, and temporary campaigns without redeployments.
+  Additionally, these settings could be managed by non-technical profiles (marketing, sales, etc.) without changing code.
 
-### Peticiones Paralelas a Proveedores
+### Parallel Provider Requests
 
-- Usa `HttpClient::stream()` de Symfony para peticiones concurrentes.
-- Referencia usada: [Boosting performance with Symfony HttpClient and parallel requests](https://dev.to/victorprdh/boosting-performance-with-symfony-httpclient-and-parallel-requests-14g7)
-- Timeout de 10 segundos por proveedor, los fallos no bloquean los resultados exitosos.
+- Uses Symfony `HttpClient::stream()` for concurrent requests.
+- Reference used: [Boosting performance with Symfony HttpClient and parallel requests](https://dev.to/victorprdh/boosting-performance-with-symfony-httpclient-and-parallel-requests-14g7)
+- 10-second timeout per provider; failures do not block successful results.
 
-### Sin Frontend
+### No Frontend
 
-- Enfoque en calidad del backend y la API.
-- OpenAPI/Swagger UI usado para mostrar y probar la API.
+- Focus on backend and API quality.
+- OpenAPI/Swagger UI used to display and test the API.
 
 ---
 
-## Requisitos
+## Requirements
 
 - PHP 8.4+
 - Composer
-- Docker y Docker Compose (opcional)
+- Docker and Docker Compose (optional)
 
 ---
 
-## Inicio Rápido
+## Quick Start
 
-### Opción 1: Docker (Recomendado)
+### Option 1: Docker (Recommended)
 
 ```bash
 cd coding-challenge
 docker-compose build
 docker-compose up -d
 
-# Accede a la documentación en:
+# Access the documentation at:
 # http://localhost:8080/api/doc
 ```
 
-### Opción 2: Desarrollo Local
+### Option 2: Local Development
 
 ```bash
 cd coding-challenge
@@ -224,26 +224,26 @@ composer install
 composer serve
 ```
 
-## Endpoints de la API
+## API Endpoints
 
-### Endpoints Principales
+### Main Endpoints
 
-| Método | Endpoint | Descripción |
+| Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/calculate` | Compara cotizaciones de todos los proveedores |
-| GET | `/api/doc` | Documentación OpenAPI (Swagger UI) |
+| POST | `/api/calculate` | Compares quotes from all providers |
+| GET | `/api/doc` | OpenAPI documentation (Swagger UI) |
 
-### Endpoints de Simulación de Proveedores
+### Provider Simulation Endpoints
 
-| Método | Endpoint | Formato | Latencia | % Errores |
-|--------|----------|---------|----------|-----------|
+| Method | Endpoint | Format | Latency | Error % |
+|--------|----------|--------|---------|---------|
 | POST | `/api/provider-a/quote` | JSON | ~2s | 10% |
 | POST | `/api/provider-b/quote` | XML | ~5s | 1% timeout |
 | POST | `/api/provider-c/quote` | CSV | ~3s | 5% |
 
 ---
 
-## Ejemplo de Uso
+## Usage Example
 
 ### Request
 
@@ -292,45 +292,45 @@ curl -X POST http://localhost:8080/api/calculate \
 
 ---
 
-## Configuración
+## Configuration
 
-### Variables de Entorno
+### Environment Variables
 
-| Variable | Por defecto | Descripción |
-|----------|-------------|-------------|
-| `CAMPAIGN_ACTIVE` | `true` | Activar/desactivar descuento de campaña del 5% |
-| `CAMPAIGN_DISCOUNT_RATE` | `0.05` | Tasa de descuento cuando la campaña está activa (0.05 = 5%) |
-| `ENABLE_PROVIDER_ERRORS` | `true` | Activar latencia y errores aleatorios en simuladores |
-| `APP_INTERNAL_BASE_URL` | `http://localhost:8080` | URL base para sub-requests internas |
-| `PROVIDER_A_URL` | `http://localhost:8080/api/provider-a/quote` | Endpoint proveedor A |
-| `PROVIDER_B_URL` | `http://localhost:8080/api/provider-b/quote` | Endpoint proveedor B |
-| `PROVIDER_C_URL` | `http://localhost:8080/api/provider-c/quote` | Endpoint proveedor C |
-| `PROVIDER_TIMEOUT` | `10` | Timeout de peticiones HTTP en segundos |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CAMPAIGN_ACTIVE` | `true` | Enable/disable 5% campaign discount |
+| `CAMPAIGN_DISCOUNT_RATE` | `0.05` | Discount rate when campaign is active (0.05 = 5%) |
+| `ENABLE_PROVIDER_ERRORS` | `true` | Enable latency and random errors in simulators |
+| `APP_INTERNAL_BASE_URL` | `http://localhost:8080` | Base URL for internal sub-requests |
+| `PROVIDER_A_URL` | `http://localhost:8080/api/provider-a/quote` | Provider A endpoint |
+| `PROVIDER_B_URL` | `http://localhost:8080/api/provider-b/quote` | Provider B endpoint |
+| `PROVIDER_C_URL` | `http://localhost:8080/api/provider-c/quote` | Provider C endpoint |
+| `PROVIDER_TIMEOUT` | `10` | HTTP request timeout in seconds |
 
 ---
 
 ## Tests
 
-# Ejecutar todos los tests
+# Run all tests
 docker compose exec app ./vendor/bin/phpunit
 
-**Cobertura de tests:**
-- **Cálculos de precios por proveedor** — `ProviderPriceCalculationTest`
-- **Lógica de comparación y ordenación** — `QuoteComparisonServiceTest`
-- **Aplicación de descuento de campaña** — `CampaignServiceTest`
-- **Endpoint Calculate** — `CalculateEndpointTest`
+**Test coverage:**
+- **Provider price calculations** - `ProviderPriceCalculationTest`
+- **Comparison and sorting logic** - `QuoteComparisonServiceTest`
+- **Campaign discount application** - `CampaignServiceTest`
+- **Calculate endpoint** - `CalculateEndpointTest`
 
 ---
 
-## Mejoras Futuras
-- **Clean/Hexagonal**: Separa el dominio de la infraestructura, facilitando tests, cambios de proveedores y evolución independiente de la lógica.
-- **Dividir DTOs:** Entidades más pequeñas y específicas, o agruparlos por contexto funcional a medida que crezca el número de requisitos o la complejidad.
-- **Caché:** Redis para respuestas de proveedores
-- **Rate limiting:** Protección frente a abuso y consumo excesivo de la API.
-- **Base de datos:** Persistir cotizaciones para análisis
-- **Monitoreo y observabilidad:** Integrar soluciones como Sentry o herramientas de logging estructurado para capturar errores, métricas y trazas.
+## Future Improvements
+- **Clean/Hexagonal:** Separate domain from infrastructure to simplify testing, provider changes, and independent evolution of business logic.
+- **Split DTOs:** Smaller and more specific entities, or grouping by functional context as requirements and complexity grow.
+- **Cache:** Redis for provider responses.
+- **Rate limiting:** Protection against API abuse and excessive usage.
+- **Database:** Persist quotes for analytics.
+- **Monitoring and observability:** Integrate solutions such as Sentry or structured logging tools to capture errors, metrics, and traces.
 
 ---
 
-## Autor
+## Author
 Wei Zheng
