@@ -1,4 +1,4 @@
-# Coding Challenge Backend
+# Car Insurance Comparer Challenge
 
 ## Requirements Summary
 
@@ -329,8 +329,3 @@ docker compose exec app ./vendor/bin/phpunit
 - **Rate limiting:** Protection against API abuse and excessive usage.
 - **Database:** Persist quotes for analytics.
 - **Monitoring and observability:** Integrate solutions such as Sentry or structured logging tools to capture errors, metrics, and traces.
-
----
-
-## Author
-Wei Zheng
